@@ -7,6 +7,8 @@ But what does GitOps look like in action, especially for Dataiku projects?
 In this article, we'll walk you through a practical Proof of Concept (POC) that demonstrates how to implement GitOps for Dataiku.
 Inspired by System1's successful deployment, this guide invites you to try it yourself using shared resources.
 
+Note: This implementation specifically demonstrates GitOps using GitHub as the platform. While GitOps principles can be implemented using other Git platforms (such as GitLab or Bitbucket), this guide focuses on GitHub-specific features like GitHub Actions for the CI/CD pipeline. The core concepts remain applicable to other platforms, though the specific implementation details may vary.
+
 ## What is GitOps?
 
 Before diving into the POC, let's briefly touch on GitOps. At its core, GitOps uses Git as the single source of truth for managing infrastructure and application deployments.
