@@ -107,11 +107,11 @@ runs-on: ubuntu-latest
           dataiku_instance_staging_url: ${{ vars.DATAIKU_INSTANCE_STAGING_URL }}
           dataiku_instance_prod_url: ${{ vars.DATAIKU_INSTANCE_PROD_URL }}
           dataiku_project_key: ${{ vars.DATAIKU_PROJECT_KEY }}
+          client_certificate: ${{ secrets.CLIENT_CERTIFICATE }}
           run_tests_only: "true"
 ```
 
-The `pr.yml` file is triggered when a PR is created. It will run the `run_tests` function in `tests.py`, which will create a bundle from the DSS Dev instance, push it to the
-Staging environment, and run the tests. You can find more details about the github actions [here](https://github.com/qcastel/dataiku-gitops-github-action).
+The `pr.yml` file is triggered when a PR is created. It will create a bundle from the DSS Dev instance, push it to the Staging environment, and run the tests. You can find more details about the github actions [here](https://github.com/qcastel/dataiku-gitops-github-action).
 
 To consume the GitHub Action, you will notice that we are passing it a tests script which we will detail in the next section. We also define some secrets and variables that
 are used to configure the GitHub Action, those are the different urls and API keys to access the different environments.
@@ -262,15 +262,6 @@ client_dev = dataikuapi.DSSClient(
 )
 ```
 
-#### Additional Tips from System1's Implementation
-
-For organizations managing multiple Dataiku projects, System1 shared their approach to scaling the GitOps implementation efficiently. They use Infrastructure as Code (IaC) tools like Pulumi to automate the entire process:
-
-> "Managing multiple Dataiku projects manually became challenging as we scaled. We automated our entire setup using Pulumi to manage GitHub repositories and their configurations. Our automated process discovers Dataiku resources (projects, plugins), creates corresponding GitHub repositories, and maintains all necessary settings and secrets. It even handles cleanup by removing repositories when projects are deleted. This has significantly reduced our operational overhead and potential for configuration errors."
-> — Attila Nagy, Sr. DataOps Engineer at System1
-
-This automation approach demonstrates how GitOps implementations can be scaled efficiently in larger organizations, though the specific tools and methods may vary based on your organization's needs and infrastructure.
-
 ### 4. Merge and Deploy
 
 Once the PR is marked as green, indicating that all tests have passed, it can be merged into the `prod` branch. This triggers the CI/CD pipeline to replay the tests and
@@ -320,6 +311,15 @@ While we've demonstrated this process for a single project, many customers will 
 - Copy and paste the CI/CD configuration for each new project.
 - Reuse the same GitHub Action, ensuring consistency and efficiency across your workflows.
 - Customize a `tests.py` script for each project to validate that your specific project requirements are met and everything is functioning as expected.
+
+#### Additional Tips from System1's Implementation
+
+For organizations managing multiple Dataiku projects, System1 shared their approach to scaling the GitOps implementation efficiently. They use Infrastructure as Code (IaC) tools like Pulumi to automate the entire process:
+
+> "Managing multiple Dataiku projects manually became challenging as we scaled. We automated our entire setup using Pulumi to manage GitHub repositories and their configurations. Our automated process discovers Dataiku resources (projects, plugins), creates corresponding GitHub repositories, and maintains all necessary settings and secrets. It even handles cleanup by removing repositories when projects are deleted. This has significantly reduced our operational overhead and potential for configuration errors."
+> — Attila Nagy, Sr. DataOps Engineer at System1
+
+This automation approach demonstrates how GitOps implementations can be scaled efficiently in larger organizations, though the specific tools and methods may vary based on your organization's needs and infrastructure.
 
 ## Try It Yourself
 
