@@ -210,9 +210,11 @@ it is offered under the Apache 2.0 license, allowing for contributions and modif
 
 #### Testing Framework
 
-For testing, we use pytest, which provides excellent flexibility and features for testing Dataiku projects. Here's how we structure our tests in `tests.py`:
+Each Dataiku project repository contains its own test suite in `tests.py`, while the GitHub Action serves as a shared CI component that executes these project-specific tests. This separation allows teams to define tests that are relevant to their specific project's requirements while reusing the common deployment infrastructure.
 
-````python
+For this POC, we've implemented a simple test suite using pytest. While this is a basic example for demonstration purposes, it shows how to structure tests for a Dataiku project:
+
+```python
 import os
 import pytest
 from dataikuapi import DSSClient
@@ -240,6 +242,9 @@ def test_compute_recipe(project):
         assert True
     except Exception as e:
         pytest.fail(f"Recipe execution failed: {e}")
+```
+
+The GitHub Action will execute these project-specific tests during the deployment process, ensuring that your project's unique requirements are met before proceeding with deployment.
 
 #### Infrastructure Considerations
 
@@ -255,7 +260,7 @@ client_dev = dataikuapi.DSSClient(
     no_check_certificate=True,
     client_certificate=certificate_path
 )
-````
+```
 
 #### Additional Tips from System1's Implementation
 
