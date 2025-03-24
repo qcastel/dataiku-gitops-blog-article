@@ -306,6 +306,7 @@ jobs:
           dataiku_instance_staging_url: ${{ vars.DATAIKU_INSTANCE_STAGING_URL }}
           dataiku_instance_prod_url: ${{ vars.DATAIKU_INSTANCE_PROD_URL }}
           dataiku_project_key: ${{ vars.DATAIKU_PROJECT_KEY }}
+          client_certificate: ${{ secrets.CLIENT_CERTIFICATE }}
           run_tests_only: "false"
 ```
 
