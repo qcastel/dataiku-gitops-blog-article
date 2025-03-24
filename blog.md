@@ -50,14 +50,7 @@ To set up a Git remote to a GitHub project, follow these steps:
 #### Integrating GitOps into Your Existing Workflow
 
 As a Dataiku user, your daily workflow remains largely unchanged. You continue to develop and refine your projects within the DSS environment, leveraging its powerful tools
-and features. However, when you're ready to push your changes to production, that's where the GitOps workflow begins to enhance your process:
-
-- **Continue Your Usual Development**: Work on your Dataiku projects as you always have, making changes, running experiments, and iterating on your models.
-- **Initiate the GitOps Workflow**: When you're ready to move your changes to production, push your changes to the remote repository. This is the starting point of the GitOps
-  workflow.
-
-This approach allows you to build on your existing workflow, adding the benefits of GitOps without disrupting your current processes. It provides a structured path to
-production, enhancing reliability and collaboration.
+and features. When you're ready to promote your changes to production, simply push them to the remote repository to initiate the GitOps workflow. This approach adds deployment controls and automation without disrupting your familiar development process.
 
 #### Transitioning to a Classic Git Workflow
 
@@ -85,7 +78,7 @@ To illustrate the importance of automated testing in our GitOps workflow, let's 
 ### 3. GitHub Actions for CI/CD
 
 When a PR is created, a CI process is automatically triggered because we have set up our CI specifically for this POC. We are using a custom GitHub Action
-created specifically for this purpose, which you can find [here](#). Our PR
+created specifically for this purpose, which you can find [here](https://github.com/qcastel/dataiku-gitops-github-action). Our PR
 CI workflow is defined in the `pr.yml` file:
 
 ```yaml
@@ -118,7 +111,7 @@ runs-on: ubuntu-latest
 ```
 
 The `pr.yml` file is triggered when a PR is created. It will run the `run_tests` function in `tests.py`, which will create a bundle from the DSS Dev instance, push it to the
-Staging environment, and run the tests. You can find more details about the github actions [here](#).
+Staging environment, and run the tests. You can find more details about the github actions [here](https://github.com/qcastel/dataiku-gitops-github-action).
 
 To consume the GitHub Action, you will notice that we are passing it a tests script which we will detail in the next section. We also define some secrets and variables that
 are used to configure the GitHub Action, those are the different urls and API keys to access the different environments.
@@ -128,6 +121,14 @@ are used to configure the GitHub Action, those are the different urls and API ke
 GitHub Actions are workflows that automate tasks within your software development lifecycle.
 The Dataiku GitOps GitHub Action is a simple wrapper around the `dataiku_gitops_action.py` script.
 This action automates the process of creating and managing bundles in Dataiku, ensuring a seamless transition from development to production.
+
+An important note about GitOps implementation with Dataiku: While GitOps traditionally uses Git as the single source of truth, in this setup, the deployed bundle might not exactly match the Git repository state. This occurs because the bundle is created at a specific point in time when GitHub Actions runs, and the Dataiku state could be newer than the Git state. To address this, our implementation includes a synchronization check that:
+
+1. Retrieves the latest commit SHA from Dataiku
+2. Compares it with the GitHub repository state
+3. If they don't match, triggers a Git push from the Dataiku side and restarts the process
+
+This ensures consistency between your Git repository and Dataiku state.
 
 ```python
 # Content of dataiku_gitops_action.py
@@ -194,32 +195,43 @@ def main():
             sys.exit(1)
 ```
 
-#### How It Works
-
-- **Create a Bundle from the DSS Dev Instance**: The action begins by creating a bundle from your development instance in Dataiku DSS.
-- **Push the Bundle to Staging**: The bundle is then pushed to the staging environment, preparing it for testing.
-- **Run a Set of Tests**: The `run_tests` function in `tests.py` is executed to ensure that the recipe runs successfully. This script is defined in each project repository and is tailored to the specific requirements and functionalities of the project. Here's a snippet of the function we used for our POC:
-
-```python
-def run_tests(instance_url, api_key, project_key):
-    client = DSSClient(instance_url, api_key, no_check_certificate=True)
-    project = client.get_project(project_key)
-    recipe = project.get_recipe('compute_test')
-    try:
-        recipe.run(wait=True, no_fail=False)
-        return 'SUCCESS'
-    except Exception as e:
-        print(f"An error occurred while running the job: {e}")
-        return 'FAILED'
-```
-
-If the tests are successful, the PR is marked green, indicating that it is ready to be merged. If any tests fail, the PR is marked red, preventing it from being merged
-until the issues are resolved.
-
 #### Reusing GitHub Actions
 
 The GitHub Action used in this article is available for you to reuse and test the concept of GitOps with Dataiku. While Dataiku may not officially support this action,
 it is offered under the Apache 2.0 license, allowing for contributions and modifications. This flexibility enables you to adapt the workflow to your specific needs and collaborate with others in the community.
+
+#### Testing Framework
+
+For testing, we use pytest, which provides excellent flexibility and features for testing Dataiku projects. Pytest's decorator system makes it easy to:
+
+- Set up DSS SDK connections for specific nodes
+- Control which nodes or deployment stages should be tested
+- Manage test environments and configurations
+
+#### Infrastructure Considerations
+
+Since Dataiku often runs in private networks (intranets), accessing it from GitHub Actions runners requires careful security configuration. For secure communication, you can use mTLS with AWS Load Balancers. Starting from Dataiku 13.5, mTLS is officially supported in the SDK:
+
+```python
+import dataikuapi
+
+# Initialize client with mTLS certificate
+client_dev = dataikuapi.DSSClient(
+    DATAIKU_INSTANCE_DEV_URL,
+    DATAIKU_API_TOKEN_DEV,
+    no_check_certificate=True,
+    client_certificate=certificate_path
+)
+```
+
+#### Additional Tips from System1's Implementation
+
+For organizations managing multiple Dataiku projects, System1 shared their approach to scaling the GitOps implementation efficiently. They use Infrastructure as Code (IaC) tools like Pulumi to automate the entire process:
+
+> "Managing multiple Dataiku projects manually became challenging as we scaled. We automated our entire setup using Pulumi to manage GitHub repositories and their configurations. Our automated process discovers Dataiku resources (projects, plugins), creates corresponding GitHub repositories, and maintains all necessary settings and secrets. It even handles cleanup by removing repositories when projects are deleted. This has significantly reduced our operational overhead and potential for configuration errors."
+> — Attila Nagy, Sr. DataOps Engineer at System1
+
+This automation approach demonstrates how GitOps implementations can be scaled efficiently in larger organizations, though the specific tools and methods may vary based on your organization's needs and infrastructure.
 
 ### 4. Merge and Deploy
 
