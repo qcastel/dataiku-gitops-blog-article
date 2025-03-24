@@ -78,8 +78,8 @@ To illustrate the importance of automated testing in our GitOps workflow, let's 
 ### 3. GitHub Actions for CI/CD
 
 When a PR is created, a CI process is automatically triggered because we have set up our CI specifically for this POC. We are using a custom GitHub Action
-created specifically for this purpose, which you can find [here](https://github.com/qcastel/dataiku-gitops-github-action). Our PR
-CI workflow is defined in the `pr.yml` file:
+created specifically for this purpose, which you can find [here](https://github.com/qcastel/dataiku-gitops-demo-project). Our PR
+CI workflow is defined in the [pr.yml](https://github.com/qcastel/dataiku-gitops-demo-project/blob/prod/.github/workflows/pr.yml) file:
 
 ```yaml
 name: Dataiku GitOps PR
@@ -135,6 +135,14 @@ This ensures consistency between your Git repository and Dataiku state.
 
 def main():
     try:
+        dataiku_sha = get_dataiku_latest_commit(client_dev, DATAIKU_PROJECT_KEY)
+        git_sha = get_git_sha()
+        if dataiku_sha != git_sha:
+            print(f"Dataiku commit SHA ({dataiku_sha}) doesn't match Git SHA ({git_sha})")
+            sync_dataiku_to_git(client_dev, DATAIKU_PROJECT_KEY)
+            print("Pushed Dataiku changes to Git. Restarting process.")
+            sys.exit(0)  # Exit cleanly to allow the process to restart
+
         # Get the current commit ID
         commit_id = get_commit_id()
         bundle_id = generate_bundle_id(commit_id)
@@ -202,11 +210,36 @@ it is offered under the Apache 2.0 license, allowing for contributions and modif
 
 #### Testing Framework
 
-For testing, we use pytest, which provides excellent flexibility and features for testing Dataiku projects. Pytest's decorator system makes it easy to:
+For testing, we use pytest, which provides excellent flexibility and features for testing Dataiku projects. Here's how we structure our tests in `tests.py`:
 
-- Set up DSS SDK connections for specific nodes
-- Control which nodes or deployment stages should be tested
-- Manage test environments and configurations
+````python
+import os
+import pytest
+from dataikuapi import DSSClient
+
+# Environment variables
+DATAIKU_INSTANCE_URL = os.getenv('DATAIKU_INSTANCE_URL')
+DATAIKU_API_KEY = os.getenv('DATAIKU_API_KEY')
+DATAIKU_PROJECT_KEY = os.getenv('DATAIKU_PROJECT_KEY')
+
+# Fixture for the Dataiku client
+@pytest.fixture
+def dss_client():
+    return DSSClient(DATAIKU_INSTANCE_URL, DATAIKU_API_KEY, no_check_certificate=True)
+
+# Fixture for the project
+@pytest.fixture
+def project(dss_client):
+    return dss_client.get_project(DATAIKU_PROJECT_KEY)
+
+def test_compute_recipe(project):
+    """Test that the compute_test recipe runs successfully"""
+    recipe = project.get_recipe('compute_test')
+    try:
+        recipe.run(wait=True, no_fail=False)
+        assert True
+    except Exception as e:
+        pytest.fail(f"Recipe execution failed: {e}")
 
 #### Infrastructure Considerations
 
@@ -222,7 +255,7 @@ client_dev = dataikuapi.DSSClient(
     no_check_certificate=True,
     client_certificate=certificate_path
 )
-```
+````
 
 #### Additional Tips from System1's Implementation
 
