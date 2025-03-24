@@ -22,9 +22,8 @@ providing real-world insights into the benefits and challenges of adopting GitOp
 
 ### System1's Testimony
 
-> _"Implementing GitOps for our Dataiku projects has transformed our deployment process. The ability to automate our CI/CD pipeline and ensure consistency across environments
-> has been a game-changer. We can now deploy with confidence, knowing that our changes are thoroughly tested and reviewed before reaching production."_  
-> — [Name], [Position] at System1
+> _"Integrating GitOps with our Dataiku projects has significantly improved our deployment process by adding automation, consistency, and control. Using GitHub Actions and Pulumi, we built a CI/CD pipeline that automates testing, can enforce mandatory reviews, and ensures only validated changes are deployed. This approach not only strengthens access control but also provides seamless rollbacks if issues arise. Now, every change is tested and reviewed before moving from development to staging and production, which can give us confidence in our deployments, improves overall collaboration across teams and also provides more visibility, because we can see the git diff in the pull request."_  
+> — [Attila Nagy], [Sr. DataOps Engineer] at System1
 
 ## The Proof of Concept (POC)
 
