@@ -134,6 +134,33 @@ This ensures consistency between your Git repository and Dataiku state.
 
 ```python
 # Content of dataiku_gitops_action.py
+def deploy(infra_id):
+    """Deploy to production using bundle and deployer."""
+    try:
+        commit_id = get_git_sha()
+        bundle_id = generate_bundle_id(commit_id)
+        project = client_dev.get_project(DATAIKU_PROJECT_KEY)
+        project.export_bundle(bundle_id)
+
+        # Publish the bundle to the deployer
+        project.publish_bundle(bundle_id)
+
+        # Get the deployer from the client and deploy
+        deployer = client_dev.get_projectdeployer()
+        deployment = deployer.create_deployment(
+            deployment_id=f"deploy_{bundle_id}",
+            project_key=DATAIKU_PROJECT_KEY,
+            infra_id=infra_id,
+            bundle_id=bundle_id
+        )
+        update = deployment.start_update()
+        update.wait_for_result()
+
+        print(f"Successfully deployed bundle {bundle_id} to infra {infra_id}")
+
+    except Exception as e:
+        print(f"Failed to deploy: {str(e)}")
+        raise e
 
 def main():
     try:
