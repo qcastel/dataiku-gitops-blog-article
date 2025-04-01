@@ -107,6 +107,8 @@ runs-on: ubuntu-latest
           dataiku_instance_staging_url: ${{ vars.DATAIKU_INSTANCE_STAGING_URL }}
           dataiku_instance_prod_url: ${{ vars.DATAIKU_INSTANCE_PROD_URL }}
           dataiku_project_key: ${{ vars.DATAIKU_PROJECT_KEY }}
+          dataiku_infra_id_staging: ${{ vars.DATAIKU_INFRA_ID_STAGING }}
+          dataiku_infra_id_prod: ${{ vars.DATAIKU_INFRA_ID_PROD }}
           client_certificate: ${{ secrets.CLIENT_CERTIFICATE }}
           run_tests_only: "true"
 ```
@@ -141,65 +143,29 @@ def main():
             print(f"Dataiku commit SHA ({dataiku_sha}) doesn't match Git SHA ({git_sha})")
             sync_dataiku_to_git(client_dev, DATAIKU_PROJECT_KEY)
             print("Pushed Dataiku changes to Git. Restarting process.")
-            sys.exit(0)  # Exit cleanly to allow the process to restart
+            sys.exit(0)
 
-        # Get the current commit ID
-        commit_id = get_commit_id()
-        bundle_id = generate_bundle_id(commit_id)
-        release_notes = "Initial release"  # Optional release notes
-
-        # Export bundle from DEV instance
-        export_bundle(client_dev, DATAIKU_PROJECT_KEY, bundle_id, release_notes)
-        print(f"Bundle exported with ID: {bundle_id}")
-
-        # Download the exported bundle
-        download_path = 'bundle.zip'
-        download_export(client_dev, DATAIKU_PROJECT_KEY, bundle_id, download_path)
-        print("Bundle downloaded.")
-
-        # List imported bundles in Staging instance before activation
-        imported_bundles_staging = list_imported_bundles(client_staging, DATAIKU_PROJECT_KEY)
-        previous_bundle_id_staging = max(imported_bundles_staging['bundles'], key=lambda bundle: datetime.strptime(bundle['importState']['importedOn'], '%Y-%m-%dT%H:%M:%S.%f%z'))['bundleId']
-
-        # Import bundle into Staging instance
-        import_bundle(client_staging, bundle_id, DATAIKU_PROJECT_KEY, download_path)
-        print(f"Bundle imported with ID: {bundle_id}")
-
-        activate_bundle(client_staging, DATAIKU_PROJECT_KEY, bundle_id)
-        print(f"Bundle activated with ID: {bundle_id}")
+        deploy(DATAIKU_INFRA_ID_STAGING)
 
         # Run tests on Staging instance
         if run_tests(PYTHON_SCRIPT, DATAIKU_INSTANCE_STAGING_URL, DATAIKU_API_TOKEN_STAGING, DATAIKU_PROJECT_KEY):
-
             if RUN_TESTS_ONLY:
                 print("Tests passed in staging. Skipping deployment to production.")
             else:
                 print("Tests passed in staging. Deploying to production.")
 
-                # List imported bundles in Prod instance before activation
-                imported_bundles_prod = list_imported_bundles(client_prod, DATAIKU_PROJECT_KEY)
-                previous_bundle_id_prod = max(imported_bundles_prod['bundles'], key=lambda bundle: datetime.strptime(bundle['importState']['importedOn'], '%Y-%m-%dT%H:%M:%S.%f%z'))['bundleId']
-
-                # Import bundle into Prod instance
-                import_bundle(client_prod, bundle_id, DATAIKU_PROJECT_KEY, download_path)
-                print(f"Bundle imported with ID: {bundle_id}")
-
-                # Activate bundle in Prod instance
-                activate_bundle(client_prod, DATAIKU_PROJECT_KEY, bundle_id)
-                print(f"Bundle activated with ID: {bundle_id}")
+                # Replace bundle import/export with deployment
+                deploy(DATAIKU_INFRA_ID_PROD)
 
                 # Run tests on Prod instance
                 if run_tests(PYTHON_SCRIPT, DATAIKU_INSTANCE_PROD_URL, DATAIKU_API_TOKEN_PROD, DATAIKU_PROJECT_KEY):
                     print("Deployment and tests successful in production.")
                 else:
-                    print("Tests failed in production. Activating previous bundle.")
-                    activate_bundle(client_prod, DATAIKU_PROJECT_KEY, previous_bundle_id_prod)
-                    print(f"Previous bundle activated with ID: {previous_bundle_id_prod}")
+                    print("Tests failed in production.")
+                    # Note: With this approach, rollback needs to be handled through Dataiku's deployment feature
                     sys.exit(1)
         else:
-            print("Tests failed in staging. Activating previous bundle.")
-            activate_bundle(client_staging, DATAIKU_PROJECT_KEY, previous_bundle_id_staging)
-            print(f"Previous bundle activated with ID: {previous_bundle_id_staging}")
+            print("Tests failed in staging.")
             sys.exit(1)
 ```
 
@@ -216,13 +182,18 @@ For this POC, we've implemented a simple test suite using pytest. While this is 
 
 ```python
 import os
+
 import pytest
+import urllib3
 from dataikuapi import DSSClient
 
 # Environment variables
 DATAIKU_INSTANCE_URL = os.getenv('DATAIKU_INSTANCE_URL')
 DATAIKU_API_KEY = os.getenv('DATAIKU_API_KEY')
 DATAIKU_PROJECT_KEY = os.getenv('DATAIKU_PROJECT_KEY')
+
+# Disable warnings for unverified HTTPS requests
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Fixture for the Dataiku client
 @pytest.fixture
@@ -264,9 +235,7 @@ client_dev = dataikuapi.DSSClient(
 
 ### 4. Merge and Deploy
 
-Once the PR is marked as green, indicating that all tests have passed, it can be merged into the `prod` branch. This triggers the CI/CD pipeline to replay the tests and
-deploy the changes to the production environment. If, for any reason, the bundle pushed to production is broken and the tests fail, the CI will immediately revert to the
-previous bundle and highlight the release as failed. This ensures that the production environment remains stable and reliable.
+Once the PR is marked as green, indicating that all tests have passed, it can be merged into the `prod` branch. This triggers the CI/CD pipeline to replay the tests and deploy the changes to the production environment.
 
 The `release.yml` file is used for this process:
 
@@ -297,6 +266,8 @@ jobs:
           dataiku_instance_staging_url: ${{ vars.DATAIKU_INSTANCE_STAGING_URL }}
           dataiku_instance_prod_url: ${{ vars.DATAIKU_INSTANCE_PROD_URL }}
           dataiku_project_key: ${{ vars.DATAIKU_PROJECT_KEY }}
+          dataiku_infra_id_staging: ${{ vars.DATAIKU_INFRA_ID_STAGING }}
+          dataiku_infra_id_prod: ${{ vars.DATAIKU_INFRA_ID_PROD }}
           client_certificate: ${{ secrets.CLIENT_CERTIFICATE }}
           run_tests_only: "false"
 ```
