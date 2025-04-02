@@ -207,6 +207,16 @@ Each Dataiku project repository contains its own test suite in `tests.py`, while
 
 For this POC, we've implemented a simple test suite using pytest. While this is a basic example for demonstration purposes, it shows how to structure tests for a Dataiku project:
 
+> **Note on Dataiku Test Scenarios**: While we're using a simple pytest approach in this POC, Dataiku provides a powerful built-in test scenarios feature that can be integrated into deployment pipelines. Test scenarios allow you to:
+>
+> - Test Flow execution with reference datasets
+> - Run Python unit tests directly within DSS
+> - Test web apps
+> - Automate test execution via pre/post-deployment hooks
+> - View test results in a dedicated dashboard
+>
+> For production implementations, consider leveraging Dataiku's native test scenarios feature as described in the [Dataiku Documentation](https://knowledge.dataiku.com/latest/mlops-o16n/test-scenarios/basics/tutorial-index.html).
+
 ```python
 import os
 
