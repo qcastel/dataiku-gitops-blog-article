@@ -85,12 +85,13 @@ CI workflow is defined in the [pr.yml](https://github.com/qcastel/dataiku-gitops
 name: Dataiku GitOps PR
 
 on:
-pull_request:
-branches: - prod
+  pull_request:
+    branches:
+      - prod
 
 jobs:
-run-tests:
-runs-on: ubuntu-latest
+  run-tests:
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -107,8 +108,6 @@ runs-on: ubuntu-latest
           dataiku_instance_staging_url: ${{ vars.DATAIKU_INSTANCE_STAGING_URL }}
           dataiku_instance_prod_url: ${{ vars.DATAIKU_INSTANCE_PROD_URL }}
           dataiku_project_key: ${{ vars.DATAIKU_PROJECT_KEY }}
-          dataiku_infra_id_staging: ${{ vars.DATAIKU_INFRA_ID_STAGING }}
-          dataiku_infra_id_prod: ${{ vars.DATAIKU_INFRA_ID_PROD }}
           client_certificate: ${{ secrets.CLIENT_CERTIFICATE }}
           run_tests_only: "true"
 ```
