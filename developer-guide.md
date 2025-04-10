@@ -202,7 +202,7 @@ import os
 
 import pytest
 import urllib3
-from dataikuapi import DataikuClient
+from dataikuapi import DSSClient
 
 # Environment variables
 DATAIKU_INSTANCE_URL = os.getenv('DATAIKU_INSTANCE_URL')
@@ -214,13 +214,13 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Fixture for the Dataiku client
 @pytest.fixture
-def Dataiku_client():
-    return DataikuClient(DATAIKU_INSTANCE_URL, DATAIKU_API_KEY, no_check_certificate=True)
+def dss_client():
+    return DSSClient(DATAIKU_INSTANCE_URL, DATAIKU_API_KEY, no_check_certificate=True)
 
 # Fixture for the project
 @pytest.fixture
-def project(Dataiku_client):
-    return Dataiku_client.get_project(DATAIKU_PROJECT_KEY)
+def project(dss_client):
+    return dss_client.get_project(DATAIKU_PROJECT_KEY)
 
 def test_compute_recipe(project):
     """Test that the compute_test recipe runs successfully"""
@@ -242,10 +242,78 @@ Since Dataiku often runs in private networks (intranets), accessing it from GitH
 import dataikuapi
 
 # Initialize client with mTLS certificate
-client_dev = dataikuapi.DataikuClient(
+client_dev = dataikuapi.DSSClient(
     DATAIKU_INSTANCE_DEV_URL,
     DATAIKU_API_TOKEN_DEV,
     no_check_certificate=True,
     client_certificate=certificate_path
 )
 ```
+
+### 4. Merge and Deploy
+
+Once the PR is marked as green, indicating that all tests have passed, it can be merged into the `prod` branch. This triggers the CI/CD pipeline to replay the tests and deploy the changes to the production environment.
+
+The `release.yml` file is used for this process:
+
+```yaml
+name: Dataiku GitOps Release
+
+on:
+  push:
+    branches:
+      - prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run Dataiku GitOps Action
+        uses: qcastel/dataiku-gitops-github-action@master
+        with:
+          python-script: "tests.py"
+          dataiku_api_token_dev: ${{ secrets.DATAIKU_INSTANCE_DEV_CI_API_TOKEN }}
+          dataiku_api_token_staging: ${{ secrets.DATAIKU_INSTANCE_STAGING_CI_API_TOKEN }}
+          dataiku_api_token_prod: ${{ secrets.DATAIKU_INSTANCE_PROD_CI_API_TOKEN }}
+          dataiku_instance_dev_url: ${{ vars.DATAIKU_INSTANCE_DEV_URL }}
+          dataiku_instance_staging_url: ${{ vars.DATAIKU_INSTANCE_STAGING_URL }}
+          dataiku_instance_prod_url: ${{ vars.DATAIKU_INSTANCE_PROD_URL }}
+          dataiku_project_key: ${{ vars.DATAIKU_PROJECT_KEY }}
+          dataiku_infra_id_staging: ${{ vars.DATAIKU_INFRA_ID_STAGING }}
+          dataiku_infra_id_prod: ${{ vars.DATAIKU_INFRA_ID_PROD }}
+          client_certificate: ${{ secrets.CLIENT_CERTIFICATE }}
+          run_tests_only: "false"
+```
+
+This workflow reuses the same GitHub Action, but this time it also pushes the changes to production. It's a great demonstration of how GitHub Actions are reusable across
+different workflows.
+
+![Merge Pull Request](assets/merge-pr.gif)
+
+While we've demonstrated this process for a single project, many customers will have multiple projects to manage. To extend this approach across various projects, you can:
+
+- Copy and paste the CI/CD configuration for each new project.
+- Reuse the same GitHub Action, ensuring consistency and efficiency across your workflows.
+- Customize a `tests.py` script for each project to validate that your specific project requirements are met and everything is functioning as expected.
+
+#### Additional Tips from System1's Implementation
+
+For organizations managing multiple Dataiku projects, System1 shared their approach to scaling the GitOps implementation efficiently. They use Infrastructure as Code (IaC) tools like Pulumi to automate the entire process:
+
+> "Managing multiple Dataiku projects manually became challenging as we scaled. We automated our entire setup using Pulumi to manage GitHub repositories and their configurations. Our automated process discovers Dataiku resources (projects, plugins), creates corresponding GitHub repositories, and maintains all necessary settings and secrets. It even handles cleanup by removing repositories when projects are deleted. This has significantly reduced our operational overhead and potential for configuration errors."
+> — Attila Nagy, Sr. DataOps Engineer at System1
+
+This automation approach demonstrates how GitOps implementations can be scaled efficiently in larger organizations, though the specific tools and methods may vary based on your organization's needs and infrastructure.
+
+## Try It Yourself
+
+We invite you to try this POC yourself! The assets used for this POC, including the project repository and GitHub Action repository, are shared and linked below:
+
+- [Project Repository](https://github.com/qcastel/dataiku-gitops-demo-project) (Link to your project repository)
+- [GitHub Action Repository](https://github.com/qcastel/dataiku-gitops-github-action) (Link to your GitHub Action repository)
+
+Whether you're managing a single project or scaling across multiple Dataiku instances, this GitOps implementation provides the foundation for reliable, automated deployments. Fork the repositories, adapt the configuration to your needs, and take your first step toward automated Dataiku deployments.
