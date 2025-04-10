@@ -15,6 +15,7 @@ At its core, GitOps uses Git as the single source of truth for managing infrastr
 [System1](https://www.dataiku.com/stories/detail/system1/), a valued customer of Dataiku, has successfully implemented a GitOps workflow for their Dataiku projects. Their experience demonstrates the real-world benefits of adopting GitOps for data science workflows.
 
 > _"Integrating GitOps with our Dataiku projects has significantly improved our deployment process by adding automation, consistency, and control. Using GitHub Actions and Pulumi, we built a CI/CD pipeline that automates testing, can enforce mandatory reviews, and ensures only validated changes are deployed. This approach not only strengthens access control but also provides seamless rollbacks if issues arise.
+
 > Now, every change is tested and reviewed before moving from development to staging and production, which can give us confidence in our deployments, improves overall collaboration across teams and also provides more visibility, because we can see the git diff in the pull request."_  
 > — Attila Nagy, Sr. DataOps Engineer at System1
 
